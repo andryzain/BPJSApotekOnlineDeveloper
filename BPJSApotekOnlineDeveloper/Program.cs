@@ -1,18 +1,30 @@
 using BPJSApotekOnlineDeveloper.Repositories;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using BPJSApotekOnlineDeveloper.Models;
 using System.Text;
+using PurchasingSystemDeveloper.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-
-//Konfigurasi Database
+// Konfigurasi koneksi database
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
 });
+
+builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
+{
+    options.Password.RequireNonAlphanumeric = false;
+
+    options.Lockout.MaxFailedAccessAttempts = 3;
+    options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(5);
+}).AddDefaultTokenProviders().AddEntityFrameworkStores<ApplicationDbContext>();
+
+builder.Services.AddHttpClient();
 
 // Konfigurasi JWT
 var jwtSettings = builder.Configuration.GetSection("Jwt");
