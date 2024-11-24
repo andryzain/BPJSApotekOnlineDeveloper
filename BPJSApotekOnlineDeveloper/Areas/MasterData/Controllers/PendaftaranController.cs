@@ -46,7 +46,11 @@ namespace BPJSApotekOnlineDeveloper.Areas.MasterData.Controllers
 
             var setDateNow = DateTimeOffset.Now.ToString("yyMMdd");
 
-            var lastCode = _applicationDbContext.Pendaftarans.Where(d => d.CreateDateTime.Day == day && d.CreateDateTime.Month == month && d.CreateDateTime.Year == year).OrderByDescending(k => k.NoKartuBpjs).FirstOrDefault();
+            var lastCode = _applicationDbContext.Pendaftarans
+                .Where(d => d.CreateDateTime.Day == day && d.CreateDateTime.Month == month && d.CreateDateTime.Year == year)
+                .OrderByDescending(k => k.NoKartuBpjs)
+                .FirstOrDefault();
+
             if (lastCode == null)
             {
                 pendaftaran.NoKartuBpjs = "CRD" + setDateNow + "0001";
@@ -61,7 +65,8 @@ namespace BPJSApotekOnlineDeveloper.Areas.MasterData.Controllers
                 }
                 else
                 {
-                    pendaftaran.NoKartuBpjs = "CRD" + setDateNow + (Convert.ToInt32(lastCode.NoKartuBpjs.Substring(9, lastCode.NoKartuBpjs.Length - 9)) + 1).ToString("D4");
+                    pendaftaran.NoKartuBpjs = "CRD" + setDateNow + 
+                        (Convert.ToInt32(lastCode.NoKartuBpjs.Substring(9, lastCode.NoKartuBpjs.Length - 9)) + 1).ToString("D4");
                 }
             }            
 

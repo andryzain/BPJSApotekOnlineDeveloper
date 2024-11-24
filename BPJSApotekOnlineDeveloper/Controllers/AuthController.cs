@@ -23,8 +23,8 @@ namespace BPJSApotekOnlineDeveloper.Controllers
             // Simulasi data user (bisa diganti dengan database)
             var users = new List<LoginModel>
             {
-                new LoginModel { Username = "ayongoding", Password = "ngoding@asik123" },
-                new LoginModel { Username = "ayongoprek", Password = "ngoprek@asik123" }
+                new LoginModel { Username = "admin", Password = "admin@admin123" },
+                new LoginModel { Username = "user", Password = "user@user123" }
             };
 
             // Cek apakah user ada

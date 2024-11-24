@@ -22,8 +22,6 @@ namespace BPJSApotekOnlineDeveloper.Areas.MasterData.ViewModels
         public string Handphone { get; set; }
         [Required(ErrorMessage = "Email is required !")]
         public string Email { get; set; }
-        public IFormFile? Foto { get; set; }
-        public string? UserPhotoPath { get; set; }
         public bool IsActive { get; set; }
     }
 }
