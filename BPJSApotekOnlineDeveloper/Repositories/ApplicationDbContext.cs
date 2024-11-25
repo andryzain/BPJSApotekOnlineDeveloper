@@ -10,5 +10,7 @@ namespace BPJSApotekOnlineDeveloper.Repositories
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options) { }
         public DbSet<Pendaftaran> Pendaftarans { get; set; }
         public DbSet<UserActive> UserActives { get; set; }
+        public DbSet<PendataanResepMasuk> PendataanResepMasuks { get; set; }
+        public DbSet<ResepMasuk> ResepMasuks { get; set; }
     }
 }
