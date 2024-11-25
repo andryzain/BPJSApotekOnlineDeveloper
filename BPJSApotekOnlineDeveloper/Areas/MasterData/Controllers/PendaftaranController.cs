@@ -1,8 +1,10 @@
 ﻿using BPJSApotekOnlineDeveloper.Areas.MasterData.Models;
 using BPJSApotekOnlineDeveloper.Areas.MasterData.ViewModels;
+using BPJSApotekOnlineDeveloper.Models;
 using BPJSApotekOnlineDeveloper.Repositories;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BPJSApotekOnlineDeveloper.Areas.MasterData.Controllers
@@ -30,18 +32,14 @@ namespace BPJSApotekOnlineDeveloper.Areas.MasterData.Controllers
             var pendaftaran = _applicationDbContext.Pendaftarans.ToList();
             if (pendaftaran == null || !pendaftaran.Any())
             {
-                return NotFound(new { message = "Belum ada data pendaftaran." });
+                return NotFound(new { message = "Belum ada data pendaftaran. || 404 Not Found" });
             }
-            return Ok(pendaftaran);
+            return Ok(new { message = "Berhasil || 200 OK" });
         }
 
         [HttpPost]
         public IActionResult AddPendaftaran([FromBody] PendaftaranViewModel pendaftaran)
         {
-            //    _applicationDbContext.Pendaftarans.Add(pendaftaran);
-            //    _applicationDbContext.SaveChanges();
-            //    return CreatedAtAction(nameof(GetPendaftarans), new { id = pendaftaran.PendaftaranId }, pendaftaran);
-
             var dateNow = DateTimeOffset.Now;
             var day = dateNow.Day;
             var month = dateNow.Month;
@@ -110,21 +108,21 @@ namespace BPJSApotekOnlineDeveloper.Areas.MasterData.Controllers
                     {
                         _applicationDbContext.Pendaftarans.Add(daftar);
                         _applicationDbContext.SaveChanges();
-                        return CreatedAtAction(nameof(GetPendaftarans), new { message = "Tambah Data Sukses" }, pendaftaran);
+                        return CreatedAtAction(nameof(GetPendaftarans), new { message = "Tambah Data Sukses || 201 Created" }, pendaftaran);
                     }
                     else
                     {
-                        return NotFound(new { message = "Data tidak dapat di input !!!" });
+                        return BadRequest(new { message = "Data tidak valid !!! || 400 Bad Request" });
                     }
                 }
                 else
                 {
-                    return NotFound(new { message = "Terdapat duplikasi data !!!" });
+                    return Conflict(new { message = "Terdapat duplikasi data !!! || 409 Conflict Data" });
                 }
             }
             else
             {
-                return NotFound(new { message = "Data tidak valid !!!" });
+                return BadRequest(new { message = "Data tidak valid !!! || 400 Bad Request" });
             }
         }
 
@@ -133,14 +131,14 @@ namespace BPJSApotekOnlineDeveloper.Areas.MasterData.Controllers
         {
             if (updatePendaftaran == null)
             {
-                return BadRequest("Data pendaftaran tidak boleh kosong.");
+                return BadRequest("Data pendaftaran tidak boleh kosong. || 400 Bad Request");
             }
 
             // Cari data berdasarkan ID
             var pendaftaran = _applicationDbContext.Pendaftarans.Find(id);
             if (pendaftaran == null)
             {
-                return NotFound($"Pendaftaran dengan ID {id} tidak ditemukan.");
+                return NotFound($"Pendaftaran dengan ID {id} tidak ditemukan. || 404 Not Found");
             }
 
             try
@@ -167,7 +165,7 @@ namespace BPJSApotekOnlineDeveloper.Areas.MasterData.Controllers
                 // Simpan perubahan ke database
                 _applicationDbContext.SaveChanges();
 
-                return NoContent(); // 204 No Content jika berhasil
+                return Ok(new { message = "Berhasil Update || 200 OK" });
             }
             catch (Exception ex)
             {
@@ -183,7 +181,7 @@ namespace BPJSApotekOnlineDeveloper.Areas.MasterData.Controllers
             var pendaftaran = _applicationDbContext.Pendaftarans.Find(id);
             if (pendaftaran == null)
             {
-                return NotFound($"Pendaftaran dengan ID {id} tidak ditemukan.");
+                return NotFound($"Pendaftaran dengan ID {id} tidak ditemukan. || 404 Not Found");
             }
 
             try
@@ -194,13 +192,56 @@ namespace BPJSApotekOnlineDeveloper.Areas.MasterData.Controllers
                 // Simpan perubahan
                 _applicationDbContext.SaveChanges();
 
-                return NoContent(); // 204 No Content jika berhasil dihapus
+                return Ok(new { message = "Berhasil Hapus || 200 OK" });
             }
             catch (Exception ex)
             {
                 // Tangani error jika ada masalah
                 return StatusCode(500, $"Terjadi kesalahan saat menghapus data: {ex.Message}");
             }
+        }
+
+        [HttpGet("paged")]
+        public IActionResult GetPagedPendaftarans(int page = 1, int perPage = 2)
+        {
+            if (page <= 0 || perPage <= 0)
+            {
+                return BadRequest(new { status = "error", message = "Page and perPage must be greater than 0." });
+            }
+
+            // Total Rows
+            var totalRows = _applicationDbContext.Pendaftarans.Count();
+
+            // Total Pages
+            var totalPages = (int)Math.Ceiling(totalRows / (double)perPage);
+
+            // Ambil Data Berdasarkan Pagination
+            var rows = _applicationDbContext.Pendaftarans
+                .Skip((page - 1) * perPage)
+                .Take(perPage)
+                .ToList();
+
+            if (rows.Count == 0 && page > totalPages)
+            {
+                return NotFound(new { status = "error", message = "Page not found." });
+            }
+
+            // Buat Respons
+            var response = new ApiResponse<PaginatedData<Pendaftaran>>
+            {
+                Status = "success",
+                Message = "Data retrieved successfully",
+                Data = new PaginatedData<Pendaftaran>
+                {
+                    Rows = rows,
+                    TotalRows = totalRows,
+                    CurrentPage = page,
+                    PerPage = perPage,
+                    TotalPages = totalPages
+                }
+            };
+
+            return Ok(response);
         }
     }
 }

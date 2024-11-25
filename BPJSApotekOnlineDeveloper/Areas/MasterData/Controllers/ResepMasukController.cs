@@ -1,5 +1,6 @@
 ﻿using BPJSApotekOnlineDeveloper.Areas.MasterData.Models;
 using BPJSApotekOnlineDeveloper.Areas.MasterData.ViewModels;
+using BPJSApotekOnlineDeveloper.Models;
 using BPJSApotekOnlineDeveloper.Repositories;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors;
@@ -63,6 +64,8 @@ namespace BPJSApotekOnlineDeveloper.Areas.MasterData.Controllers
                 // Membuat instance baru berdasarkan model yang diterima
                 var newEntry = new ResepMasuk
                 {
+                    CreateDateTime = DateTimeOffset.Now,
+                    CreateBy = Guid.NewGuid(),
                     ResepMasukId = Guid.NewGuid(),
                     TglEntry = ResepMasuk.TglEntry,
                     NoSEP = ResepMasuk.NoSEP,
@@ -83,13 +86,7 @@ namespace BPJSApotekOnlineDeveloper.Areas.MasterData.Controllers
                     NoResep = ResepMasuk.NoResep,
                     TglResep = ResepMasuk.TglResep,
                     TglPelayanan = ResepMasuk.TglPelayanan,
-                    Pokter = ResepMasuk.Pokter,
-                    CreateDateTime = DateTimeOffset.Now,
-                    CreateBy = Guid.NewGuid(),
-                    UpdateDateTime = DateTimeOffset.MinValue,
-                    UpdateBy = Guid.Empty,
-                    DeleteDateTime = DateTimeOffset.MinValue,
-                    DeleteBy = Guid.Empty
+                    Pokter = ResepMasuk.Pokter                                        
                 };
 
                 // Mengecek duplikasi data
@@ -193,6 +190,49 @@ namespace BPJSApotekOnlineDeveloper.Areas.MasterData.Controllers
                 // Tangani error jika ada masalah
                 return StatusCode(500, $"Terjadi kesalahan saat menghapus data: {ex.Message}");
             }
+        }
+
+        [HttpGet("paged")]
+        public IActionResult GetPagedResepMasuks(int page = 1, int perPage = 2)
+        {
+            if (page <= 0 || perPage <= 0)
+            {
+                return BadRequest(new { status = "error", message = "Page and perPage must be greater than 0." });
+            }
+
+            // Total Rows
+            var totalRows = _applicationDbContext.ResepMasuks.Count();
+
+            // Total Pages
+            var totalPages = (int)Math.Ceiling(totalRows / (double)perPage);
+
+            // Ambil Data Berdasarkan Pagination
+            var rows = _applicationDbContext.ResepMasuks
+                .Skip((page - 1) * perPage)
+                .Take(perPage)
+                .ToList();
+
+            if (rows.Count == 0 && page > totalPages)
+            {
+                return NotFound(new { status = "error", message = "Page not found." });
+            }
+
+            // Buat Respons
+            var response = new ApiResponse<PaginatedData<ResepMasuk>>
+            {
+                Status = "success",
+                Message = "Data retrieved successfully",
+                Data = new PaginatedData<ResepMasuk>
+                {
+                    Rows = rows,
+                    TotalRows = totalRows,
+                    CurrentPage = page,
+                    PerPage = perPage,
+                    TotalPages = totalPages
+                }
+            };
+
+            return Ok(response);
         }
     }
 }
