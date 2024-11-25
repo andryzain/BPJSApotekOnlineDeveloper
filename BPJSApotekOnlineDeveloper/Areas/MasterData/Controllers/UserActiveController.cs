@@ -1,18 +1,15 @@
 ﻿using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Rendering;
-using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using BPJSApotekOnlineDeveloper.Areas.MasterData.Models;
 using BPJSApotekOnlineDeveloper.Areas.MasterData.ViewModels;
 using System.Data;
-using System.Text.RegularExpressions;
-using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 using IHostingEnvironment = Microsoft.AspNetCore.Hosting.IHostingEnvironment;
 using PurchasingSystemDeveloper.Models;
 using BPJSApotekOnlineDeveloper.Repositories;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors;
+using BPJSApotekOnlineDeveloper.Models;
 
 namespace BPJSApotekOnlineDeveloper.Areas.MasterData.Controllers
 {
@@ -53,9 +50,9 @@ namespace BPJSApotekOnlineDeveloper.Areas.MasterData.Controllers
             var user = _applicationDbContext.UserActives.ToList();
             if (user == null || !user.Any())
             {
-                return NotFound(new { message = "Belum ada data user." });
+                return NotFound(new { message = "Belum ada data user. || 404 Not Found" });
             }
-            return Ok(user);
+            return Ok(new {message = "Berhasil || 200 OK"});
         }
 
         [HttpPost]
@@ -142,26 +139,26 @@ namespace BPJSApotekOnlineDeveloper.Areas.MasterData.Controllers
                         {
                             _applicationDbContext.UserActives.Add(user);
                             _applicationDbContext.SaveChanges();
-                            return CreatedAtAction(nameof(GetUserActives), new { message = "Tambah Data Sukses" }, userActive);
+                            return CreatedAtAction(nameof(GetUserActives), new { message = "Tambah Data Berhasil || 201 Created" }, userActive);
                         }
                         else
                         {
-                            return NotFound(new { message = "Data tidak valid !!!" });
+                            return BadRequest(new { message = "Data tidak valid !!! || 400 Bad Request" });
                         }
                     }
                     else
                     {
-                        return NotFound(new { message = "Data tidak dapat di input !!!" });
+                        return BadRequest(new { message = "Data tidak dapat di input !!! || 400 Bad Request" });
                     }
                 }
                 else
                 {
-                    return NotFound(new { message = "Terdapat duplikasi data !!!" });
+                    return Conflict(new { message = "Terdapat duplikasi data !!! || 409 Conflict Data" });
                 }
             }
             else
             {
-                return NotFound(new { message = "Data tidak valid !!!" });
+                return BadRequest(new { message = "Data tidak valid !!! || 400 Bad Request" });
             }
         }
 
@@ -170,14 +167,14 @@ namespace BPJSApotekOnlineDeveloper.Areas.MasterData.Controllers
         {
             if (update == null)
             {
-                return BadRequest("Data user tidak boleh kosong.");
+                return BadRequest("Data user tidak boleh kosong. || 400 Bad Request");
             }
 
             // Cari data berdasarkan ID
             var user = _applicationDbContext.UserActives.Find(id);
             if (user == null)
             {
-                return NotFound($"User dengan ID {id} tidak ditemukan.");
+                return NotFound($"User dengan ID {id} tidak ditemukan. || 404 Not Found");
             }
 
             try
@@ -199,7 +196,7 @@ namespace BPJSApotekOnlineDeveloper.Areas.MasterData.Controllers
                 // Simpan perubahan ke database
                 _applicationDbContext.SaveChanges();
 
-                return NoContent(); // 204 No Content jika berhasil
+                return Ok(new { message = "Berhasil Update || 200 OK" } );
             }
             catch (Exception ex)
             {
@@ -215,7 +212,7 @@ namespace BPJSApotekOnlineDeveloper.Areas.MasterData.Controllers
             var user = _applicationDbContext.UserActives.Find(id);
             if (user == null)
             {
-                return NotFound($"User dengan ID {id} tidak ditemukan.");
+                return NotFound($"User dengan ID {id} tidak ditemukan. || 404 Not Found");
             }
 
             try
@@ -232,13 +229,56 @@ namespace BPJSApotekOnlineDeveloper.Areas.MasterData.Controllers
                 // Simpan perubahan
                 _applicationDbContext.SaveChanges();
 
-                return NoContent(); // 204 No Content jika berhasil dihapus
+                return Ok(new { message = "Berhasil Hapus || 200 OK" });
             }
             catch (Exception ex)
             {
                 // Tangani error jika ada masalah
                 return StatusCode(500, $"Terjadi kesalahan saat menghapus data: {ex.Message}");
             }
+        }
+
+        [HttpGet("paged")]
+        public IActionResult GetPagedUsers(int page = 1, int perPage = 2)
+        {
+            if (page <= 0 || perPage <= 0)
+            {
+                return BadRequest(new { status = "error", message = "Page and perPage must be greater than 0." });
+            }
+
+            // Total Rows
+            var totalRows = _applicationDbContext.UserActives.Count();
+
+            // Total Pages
+            var totalPages = (int)Math.Ceiling(totalRows / (double)perPage);
+
+            // Ambil Data Berdasarkan Pagination
+            var rows = _applicationDbContext.UserActives
+                .Skip((page - 1) * perPage)
+                .Take(perPage)
+                .ToList();
+
+            if (rows.Count == 0 && page > totalPages)
+            {
+                return NotFound(new { status = "error", message = "Page not found." });
+            }
+
+            // Buat Respons
+            var response = new ApiResponse<PaginatedData<UserActive>>
+            {
+                Status = "success",
+                Message = "Data retrieved successfully",
+                Data = new PaginatedData<UserActive>
+                {
+                    Rows = rows,
+                    TotalRows = totalRows,
+                    CurrentPage = page,
+                    PerPage = perPage,
+                    TotalPages = totalPages
+                }
+            };
+
+            return Ok(response);
         }
     }
 }

@@ -32,19 +32,12 @@ namespace BPJSApotekOnlineDeveloper.Controllers
 
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginViewModel model)
-        {
-            // Simulasi data user (bisa diganti dengan database)
-            //var users = new List<LoginModel>
-            //{
-            //    new LoginModel { Username = "admin", Password = "admin@admin123" },
-            //    new LoginModel { Username = "user", Password = "user@user123" }
-            //};
-
+        {            
             if (ModelState.IsValid)
             {
                 if (User.Identity.IsAuthenticated)
                 {
-                    return BadRequest(new { message = "User sedang online" });
+                    return BadRequest(new { message = "User sedang online || Response Code: 400" }); // 400 Bad Request
                 }
                 else
                 {
@@ -71,6 +64,7 @@ namespace BPJSApotekOnlineDeveloper.Controllers
 
                         return Ok(new
                         {
+                            message = "Berhasil || 200 OK",
                             token = new JwtSecurityTokenHandler().WriteToken(token),
                             expiration = token.ValidTo
                         });
@@ -82,7 +76,7 @@ namespace BPJSApotekOnlineDeveloper.Controllers
                         // Cek apakah user ada
                         if (user == null)
                         {
-                            return BadRequest(new { message = "User belum terdaftar" });
+                            return BadRequest(new { message = "User belum terdaftar || 400 Bad Request" });
                         }
                         else if (user.IsActive == true && user.IsOnline == false)
                         {
@@ -99,7 +93,7 @@ namespace BPJSApotekOnlineDeveloper.Controllers
                                 {
                                 new Claim(JwtRegisteredClaimNames.Sub, model.Email),
                                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
-                            };
+                                };
 
                                 var token = new JwtSecurityToken(
                                     issuer: jwtSettings["Issuer"],
@@ -111,16 +105,12 @@ namespace BPJSApotekOnlineDeveloper.Controllers
 
                                 return Ok(new
                                 {
+                                    message = "Berhasil || 200 OK",
                                     token = new JwtSecurityTokenHandler().WriteToken(token),
                                     expiration = token.ValidTo
                                 });
-                            }
-                            //else
-                            //{
-                            //    return Unauthorized(new { message = "Password salah" });
-                            //}
-
-                            if (result.IsLockedOut)
+                            }                           
+                            else if (result.IsLockedOut)
                             {
                                 // HttpContext.session.Clear untuk menghapus session data pengguna tidak lagi tersimpan
                                 //HttpContext.Session.Clear();
@@ -129,8 +119,13 @@ namespace BPJSApotekOnlineDeveloper.Controllers
                                 var lockTime = await _userManager.GetLockoutEndDateAsync(user);
                                 var timeRemaining = lockTime.Value - DateTimeOffset.UtcNow;
 
+                                return BadRequest(new { message = "Maaf, akun anda di blokir sementara... || 400 Bad Request" });
                                 //TempData["UserLockOut"] = "Sorry, your account is locked in " + timeRemaining.Minutes + " minutes " + timeRemaining.Seconds + " seconds";
                                 //return View(model);
+                            }
+                            else
+                            {
+                                return Unauthorized(new { message = "Password salah || 401 Unauthorized" });
                             }
                         }
                         else if (user.IsActive == true && user.IsOnline == true)
@@ -140,11 +135,11 @@ namespace BPJSApotekOnlineDeveloper.Controllers
                             user.IsOnline = false;
                             await _userManager.UpdateAsync(user);
 
-                            return Ok(user);
+                            return Ok(new { message = "Akun berhasil logout || 200 OK" });
                         }
                         else
                         {
-                            return NotFound(new { message = "Maaf, akun anda belum aktif..." });
+                            return BadRequest(new { message = "Maaf, akun anda belum aktif... || 400 Bad Request" });
                         }
                     }
                 }
