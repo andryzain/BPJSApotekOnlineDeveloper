@@ -4,7 +4,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace BPJSApotekOnlineDeveloper.Areas.MasterData.Models
 {
-    [Table("MstPendataanResepMasuk", Schema = "dbo")]
+    [Table("MasterPendataanResepMasuk", Schema = "dbo")]
     public class PendataanResepMasuk : UserActivity
     {
         [Key]

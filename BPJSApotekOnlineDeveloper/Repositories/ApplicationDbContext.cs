@@ -12,5 +12,6 @@ namespace BPJSApotekOnlineDeveloper.Repositories
         public DbSet<UserActive> UserActives { get; set; }
         public DbSet<PendataanResepMasuk> PendataanResepMasuks { get; set; }
         public DbSet<ResepMasuk> ResepMasuks { get; set; }
+        public DbSet<PendataanPRBMTM> PendataanPRBMTMs { get; set; }
     }
 }
