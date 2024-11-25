@@ -2,6 +2,7 @@
 using BPJSApotekOnlineDeveloper.Areas.MasterData.ViewModels;
 using BPJSApotekOnlineDeveloper.Repositories;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BPJSApotekOnlineDeveloper.Areas.MasterData.Controllers
@@ -9,6 +10,8 @@ namespace BPJSApotekOnlineDeveloper.Areas.MasterData.Controllers
     [ApiController]
     [Route("api/[controller]")]
     [Authorize] // Endpoint ini memerlukan token
+    [EnableCors("AllowSpecific")]
+
     public class PendaftaranController : Controller
     {
         private readonly ApplicationDbContext _applicationDbContext;
@@ -46,7 +49,11 @@ namespace BPJSApotekOnlineDeveloper.Areas.MasterData.Controllers
 
             var setDateNow = DateTimeOffset.Now.ToString("yyMMdd");
 
-            var lastCode = _applicationDbContext.Pendaftarans.Where(d => d.CreateDateTime.Day == day && d.CreateDateTime.Month == month && d.CreateDateTime.Year == year).OrderByDescending(k => k.NoKartuBpjs).FirstOrDefault();
+            var lastCode = _applicationDbContext.Pendaftarans
+                .Where(d => d.CreateDateTime.Day == day && d.CreateDateTime.Month == month && d.CreateDateTime.Year == year)
+                .OrderByDescending(k => k.NoKartuBpjs)
+                .FirstOrDefault();
+
             if (lastCode == null)
             {
                 pendaftaran.NoKartuBpjs = "CRD" + setDateNow + "0001";
@@ -61,9 +68,10 @@ namespace BPJSApotekOnlineDeveloper.Areas.MasterData.Controllers
                 }
                 else
                 {
-                    pendaftaran.NoKartuBpjs = "CRD" + setDateNow + (Convert.ToInt32(lastCode.NoKartuBpjs.Substring(9, lastCode.NoKartuBpjs.Length - 9)) + 1).ToString("D4");
+                    pendaftaran.NoKartuBpjs = "CRD" + setDateNow +
+                        (Convert.ToInt32(lastCode.NoKartuBpjs.Substring(9, lastCode.NoKartuBpjs.Length - 9)) + 1).ToString("D4");
                 }
-            }            
+            }
 
             if (ModelState.IsValid)
             {
@@ -111,7 +119,7 @@ namespace BPJSApotekOnlineDeveloper.Areas.MasterData.Controllers
                 }
                 else
                 {
-                    return NotFound(new { message = "Terdapat duplikasi data !!!" });                    
+                    return NotFound(new { message = "Terdapat duplikasi data !!!" });
                 }
             }
             else
@@ -121,39 +129,78 @@ namespace BPJSApotekOnlineDeveloper.Areas.MasterData.Controllers
         }
 
         [HttpPut("{id}")]
-        public IActionResult UpdatePendaftaran(int id, [FromBody] Pendaftaran updatePendaftaran)
+        public IActionResult UpdatePendaftaran(Guid id, [FromBody] PendaftaranViewModel updatePendaftaran)
         {
+            if (updatePendaftaran == null)
+            {
+                return BadRequest("Data pendaftaran tidak boleh kosong.");
+            }
+
+            // Cari data berdasarkan ID
             var pendaftaran = _applicationDbContext.Pendaftarans.Find(id);
-            if (pendaftaran == null) return NotFound();
+            if (pendaftaran == null)
+            {
+                return NotFound($"Pendaftaran dengan ID {id} tidak ditemukan.");
+            }
 
-            pendaftaran.NamaLengkapPeserta = updatePendaftaran.NamaLengkapPeserta;
-            pendaftaran.JenisKelamin = updatePendaftaran.JenisKelamin;
-            pendaftaran.TanggalLahir = updatePendaftaran.TanggalLahir;
-            pendaftaran.AlamatTinggal = updatePendaftaran.AlamatTinggal;
-            pendaftaran.NoTelepon = updatePendaftaran.NoTelepon;
-            pendaftaran.Email = updatePendaftaran.Email;
-            pendaftaran.NoIdentitasKTPSIM = updatePendaftaran.NoIdentitasKTPSIM;
-            pendaftaran.StatusKepesertaanBpjs = updatePendaftaran.StatusKepesertaanBpjs;
-            pendaftaran.TipeKepesertaanBpjs = updatePendaftaran.TipeKepesertaanBpjs;
-            pendaftaran.TanggalPendaftaranBpjs = updatePendaftaran.TanggalPendaftaranBpjs;
-            pendaftaran.NamaKeluarga = updatePendaftaran.NamaKeluarga;
-            pendaftaran.NamaApotek = updatePendaftaran.NamaApotek;
-            pendaftaran.StatusVerifikasi = updatePendaftaran.StatusVerifikasi;
-            pendaftaran.InformasiObat = updatePendaftaran.InformasiObat;
+            try
+            {
+                // Perbarui data pendaftaran
+                pendaftaran.NamaLengkapPeserta = updatePendaftaran.NamaLengkapPeserta;
+                pendaftaran.JenisKelamin = updatePendaftaran.JenisKelamin;
+                pendaftaran.TanggalLahir = updatePendaftaran.TanggalLahir;
+                pendaftaran.AlamatTinggal = updatePendaftaran.AlamatTinggal;
+                pendaftaran.NoTelepon = updatePendaftaran.NoTelepon;
+                pendaftaran.Email = updatePendaftaran.Email;
+                pendaftaran.NoIdentitasKTPSIM = updatePendaftaran.NoIdentitasKTPSIM;
+                pendaftaran.StatusKepesertaanBpjs = updatePendaftaran.StatusKepesertaanBpjs;
+                pendaftaran.TipeKepesertaanBpjs = updatePendaftaran.TipeKepesertaanBpjs;
+                pendaftaran.TanggalPendaftaranBpjs = updatePendaftaran.TanggalPendaftaranBpjs;
+                pendaftaran.NamaKeluarga = updatePendaftaran.NamaKeluarga;
+                pendaftaran.NamaApotek = updatePendaftaran.NamaApotek;
+                pendaftaran.StatusVerifikasi = updatePendaftaran.StatusVerifikasi;
+                pendaftaran.InformasiObat = updatePendaftaran.InformasiObat;
 
-            _applicationDbContext.SaveChanges();
-            return NoContent();
+                // Tandai data sebagai telah diubah
+                _applicationDbContext.Pendaftarans.Update(pendaftaran);
+
+                // Simpan perubahan ke database
+                _applicationDbContext.SaveChanges();
+
+                return NoContent(); // 204 No Content jika berhasil
+            }
+            catch (Exception ex)
+            {
+                // Tangani error jika terjadi masalah
+                return StatusCode(500, $"Terjadi kesalahan saat memperbarui data: {ex.Message}");
+            }
         }
 
         [HttpDelete("{id}")]
-        public IActionResult DeletePendaftaran(int id)
+        public IActionResult DeletePendaftaran(Guid id)
         {
+            // Cari data berdasarkan ID
             var pendaftaran = _applicationDbContext.Pendaftarans.Find(id);
-            if (pendaftaran == null) return NotFound();
+            if (pendaftaran == null)
+            {
+                return NotFound($"Pendaftaran dengan ID {id} tidak ditemukan.");
+            }
 
-            _applicationDbContext.Pendaftarans.Remove(pendaftaran);
-            _applicationDbContext.SaveChanges();
-            return NoContent();
+            try
+            {
+                // Hapus entitas dari database
+                _applicationDbContext.Pendaftarans.Remove(pendaftaran);
+
+                // Simpan perubahan
+                _applicationDbContext.SaveChanges();
+
+                return NoContent(); // 204 No Content jika berhasil dihapus
+            }
+            catch (Exception ex)
+            {
+                // Tangani error jika ada masalah
+                return StatusCode(500, $"Terjadi kesalahan saat menghapus data: {ex.Message}");
+            }
         }
     }
 }

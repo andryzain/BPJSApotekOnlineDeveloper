@@ -5,7 +5,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace BPJSApotekOnlineDeveloper.Areas.MasterData.Models
 {
-    [Table("MstUserActive", Schema = "dbo")]
+    [Table("MasterUserActive", Schema = "dbo")]
     public class UserActive : UserActivity
     {
         [Key]
@@ -19,7 +19,6 @@ namespace BPJSApotekOnlineDeveloper.Areas.MasterData.Models
         public string Address { get; set; }
         public string Handphone { get; set; }
         public string Email { get; set; }
-        public string? Foto { get; set; }
         public bool IsActive { get; set; }
 
     }

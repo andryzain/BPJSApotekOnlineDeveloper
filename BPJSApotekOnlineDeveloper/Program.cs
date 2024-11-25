@@ -16,6 +16,17 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
 });
 
+// Tambahkan layanan CORS
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowSpecific", policy =>
+    {
+        policy.AllowAnyOrigin()
+              .AllowAnyMethod()
+              .AllowAnyHeader();
+    });
+});
+
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 {
     options.Password.RequireNonAlphanumeric = false;
@@ -96,6 +107,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseAuthentication(); // Tambahkan middleware autentikasi
+app.UseCors("AllowSpecific"); // Panggil sebelum middleware lainnya
 app.UseAuthorization();
 app.MapControllers();
 

@@ -10,15 +10,17 @@ using System.Text.RegularExpressions;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 using IHostingEnvironment = Microsoft.AspNetCore.Hosting.IHostingEnvironment;
 using PurchasingSystemDeveloper.Models;
-using BPJSApotekOnlineDeveloper.Areas.MasterData.Repositories;
 using BPJSApotekOnlineDeveloper.Repositories;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Cors;
 
 namespace BPJSApotekOnlineDeveloper.Areas.MasterData.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
     [Authorize] // Endpoint ini memerlukan token
+    [EnableCors("AllowSpecific")]
+
     public class UserActiveController : Controller
     {
         private readonly UserManager<ApplicationUser> _userManager;
@@ -31,7 +33,6 @@ namespace BPJSApotekOnlineDeveloper.Areas.MasterData.Controllers
         public UserActiveController(
             UserManager<ApplicationUser> userManager,
             SignInManager<ApplicationUser> signInManager,
-            IUserActiveRepository userActiveRepository,
 
             ApplicationDbContext applicationDbContext,
             ILogger<UserActiveController> logger,
@@ -40,28 +41,25 @@ namespace BPJSApotekOnlineDeveloper.Areas.MasterData.Controllers
         {
             _userManager = userManager;
             _signInManager = signInManager;
-                
+
             _applicationDbContext = applicationDbContext;
-            _logger = logger;   
+            _logger = logger;
             _hostingEnvironment = hostingEnvironment;
         }
 
-        [HttpGet("GetAspNetUsers")]
-        public IActionResult GetAspNetUsers()
+        [HttpGet]
+        public IActionResult GetUserActives()
         {
-            var users = _applicationDbContext.Users.ToList(); // _context.Users adalah akses ke tabel AspNetUsers
-
-            if (users == null || !users.Any())
+            var user = _applicationDbContext.UserActives.ToList();
+            if (user == null || !user.Any())
             {
-                return NotFound(new { message = "Belum ada data pengguna." });
+                return NotFound(new { message = "Belum ada data user." });
             }
-
-            return Ok(users);
+            return Ok(user);
         }
 
-
-        [HttpPost("AddUser")]
-        public async Task<IActionResult> AddUser([FromBody] UserActive userActive)
+        [HttpPost]
+        public async Task<IActionResult> AddUser([FromBody] UserActiveViewModel userActive)
         {
             var dateNow = DateTimeOffset.Now;
             var day = dateNow.Day;
@@ -91,41 +89,156 @@ namespace BPJSApotekOnlineDeveloper.Areas.MasterData.Controllers
                 else
                 {
                     userActive.UserActiveCode = "USR" + setDateNow +
-                                                (Convert.ToInt32(lastCode.UserActiveCode.Substring(9)) + 1).ToString("D4");
+                        (Convert.ToInt32(lastCode.UserActiveCode.Substring(9)) + 1).ToString("D4");
                 }
             }
 
             // Validate ModelState
-            if (!ModelState.IsValid)
+            if (ModelState.IsValid)
             {
-                return BadRequest(new { message = "Data tidak valid!" });
+                var userLogin = new ApplicationUser
+                {
+                    KodeUser = userActive.UserActiveCode,
+                    NamaUser = userActive.FullName,
+                    Email = userActive.Email,
+                    UserName = userActive.Email,
+                    PhoneNumber = userActive.Handphone,
+                    IsActive = true
+                };
+
+                var user = new UserActive
+                {
+                    CreateDateTime = DateTimeOffset.Now,
+                    CreateBy = Guid.NewGuid(),
+                    UpdateDateTime = DateTimeOffset.MinValue,
+                    UpdateBy = new Guid("00000000-0000-0000-0000-000000000000"),
+                    DeleteDateTime = DateTimeOffset.MinValue,
+                    DeleteBy = new Guid("00000000-0000-0000-0000-000000000000"),
+                    UserActiveId = Guid.NewGuid(),
+                    UserActiveCode = userActive.UserActiveCode,
+                    FullName = userActive.FullName,
+                    IdentityNumber = userActive.IdentityNumber,
+                    PlaceOfBirth = userActive.PlaceOfBirth,
+                    DateOfBirth = userActive.DateOfBirth,
+                    Gender = userActive.Gender,
+                    Address = userActive.Address,
+                    Handphone = userActive.Handphone,
+                    Email = userActive.Email,
+                    IsActive = true
+                };
+
+                var passTglLahir = userActive.DateOfBirth.ToString("ddMMMyyyy");
+
+                var checkDuplicate = _applicationDbContext.UserActives.Where(c => c.UserActiveCode == userActive.UserActiveCode).ToList();
+
+                if (checkDuplicate.Count == 0)
+                {
+                    var result = _applicationDbContext.UserActives.Where(c => c.UserActiveCode == userActive.UserActiveCode).FirstOrDefault();
+                    if (result == null)
+                    {
+                        var resultLogin = await _userManager.CreateAsync(userLogin, passTglLahir);
+
+                        if (resultLogin.Succeeded)
+                        {
+                            _applicationDbContext.UserActives.Add(user);
+                            _applicationDbContext.SaveChanges();
+                            return CreatedAtAction(nameof(GetUserActives), new { message = "Tambah Data Sukses" }, userActive);
+                        }
+                        else
+                        {
+                            return NotFound(new { message = "Data tidak valid !!!" });
+                        }
+                    }
+                    else
+                    {
+                        return NotFound(new { message = "Data tidak dapat di input !!!" });
+                    }
+                }
+                else
+                {
+                    return NotFound(new { message = "Terdapat duplikasi data !!!" });
+                }
             }
-
-            // Check for duplicate UserActiveCode
-            var checkDuplicate = _applicationDbContext.UserActives
-                .FirstOrDefault(c => c.UserActiveCode == userActive.UserActiveCode);
-
-            if (checkDuplicate != null)
+            else
             {
-                return Conflict(new { message = "Terdapat duplikasi data!" });
+                return NotFound(new { message = "Data tidak valid !!!" });
             }
-
-            // Add User to AspNetUsers
-            var identityUser = new IdentityUser
-            {
-                UserName = userActive.Email,
-                Email = userActive.Email,
-                PhoneNumber = userActive.Handphone,
-            };
-
-
-            // Add User to UserActive
-            userActive.UserActiveId = Guid.NewGuid();
-            _applicationDbContext.UserActives.Add(userActive);
-            await _applicationDbContext.SaveChangesAsync();
-
-            return CreatedAtAction(nameof(AddUser), new { message = "Tambah Data Sukses" }, userActive);
         }
 
+        [HttpPut("{id}")]
+        public IActionResult UpdateUser(Guid id, [FromBody] UserActiveViewModel update)
+        {
+            if (update == null)
+            {
+                return BadRequest("Data user tidak boleh kosong.");
+            }
+
+            // Cari data berdasarkan ID
+            var user = _applicationDbContext.UserActives.Find(id);
+            if (user == null)
+            {
+                return NotFound($"User dengan ID {id} tidak ditemukan.");
+            }
+
+            try
+            {
+                // Perbarui data user
+                user.FullName = update.FullName;
+                user.IdentityNumber = update.IdentityNumber;
+                user.PlaceOfBirth = update.PlaceOfBirth;
+                user.DateOfBirth = update.DateOfBirth;
+                user.Gender = update.Gender;
+                user.Address = update.Address;
+                user.Handphone = update.Handphone;
+                user.Email = update.Email;
+                user.IsActive = update.IsActive;
+
+                // Tandai data sebagai telah diubah
+                _applicationDbContext.UserActives.Update(user);
+
+                // Simpan perubahan ke database
+                _applicationDbContext.SaveChanges();
+
+                return NoContent(); // 204 No Content jika berhasil
+            }
+            catch (Exception ex)
+            {
+                // Tangani error jika terjadi masalah
+                return StatusCode(500, $"Terjadi kesalahan saat memperbarui data: {ex.Message}");
+            }
+        }
+
+        [HttpDelete("{id}")]
+        public IActionResult DeleteUser(Guid id)
+        {
+            // Cari data berdasarkan ID
+            var user = _applicationDbContext.UserActives.Find(id);
+            if (user == null)
+            {
+                return NotFound($"User dengan ID {id} tidak ditemukan.");
+            }
+
+            try
+            {
+                // Hapus Akun Login
+                var userLogin = _signInManager.UserManager.Users.FirstOrDefault(s => s.KodeUser == user.UserActiveCode);
+                _applicationDbContext.Attach(userLogin);
+                _applicationDbContext.Entry(userLogin).State = EntityState.Deleted;
+                _applicationDbContext.SaveChanges();
+
+                // Hapus entitas dari database
+                _applicationDbContext.UserActives.Remove(user);
+
+                // Simpan perubahan
+                _applicationDbContext.SaveChanges();
+
+                return NoContent(); // 204 No Content jika berhasil dihapus
+            }
+            catch (Exception ex)
+            {
+                // Tangani error jika ada masalah
+                return StatusCode(500, $"Terjadi kesalahan saat menghapus data: {ex.Message}");
+            }
+        }
     }
 }

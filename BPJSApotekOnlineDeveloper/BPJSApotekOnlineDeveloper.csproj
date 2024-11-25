@@ -20,8 +20,8 @@
 
   <ItemGroup>
     <Folder Include="Areas\MasterData\Data\" />
+    <Folder Include="Areas\MasterData\Repositories\" />
     <Folder Include="Areas\MasterData\Views\" />
-    <Folder Include="ViewModels\" />
   </ItemGroup>
 
 </Project>
