@@ -4,7 +4,6 @@ namespace BPJSApotekOnlineDeveloper.Areas.MasterData.ViewModels
 {
     public class UserActiveViewModel
     {
-        public Guid UserActiveId { get; set; }
         public string UserActiveCode { get; set; }
         [Required(ErrorMessage = "Fullname is required !")]
         public string FullName { get; set; }

@@ -12,12 +12,15 @@ using IHostingEnvironment = Microsoft.AspNetCore.Hosting.IHostingEnvironment;
 using PurchasingSystemDeveloper.Models;
 using BPJSApotekOnlineDeveloper.Repositories;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Cors;
 
 namespace BPJSApotekOnlineDeveloper.Areas.MasterData.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
     [Authorize] // Endpoint ini memerlukan token
+    [EnableCors("AllowSpecific")]
+
     public class UserActiveController : Controller
     {
         private readonly UserManager<ApplicationUser> _userManager;
@@ -38,9 +41,9 @@ namespace BPJSApotekOnlineDeveloper.Areas.MasterData.Controllers
         {
             _userManager = userManager;
             _signInManager = signInManager;
-                
+
             _applicationDbContext = applicationDbContext;
-            _logger = logger;   
+            _logger = logger;
             _hostingEnvironment = hostingEnvironment;
         }
 
@@ -54,20 +57,6 @@ namespace BPJSApotekOnlineDeveloper.Areas.MasterData.Controllers
             }
             return Ok(user);
         }
-
-        [HttpGet("GetAspNetUsers")]
-        public IActionResult GetAspNetUsers()
-        {
-            var users = _applicationDbContext.Users.ToList(); // _context.Users adalah akses ke tabel AspNetUsers
-
-            if (users == null || !users.Any())
-            {
-                return NotFound(new { message = "Belum ada data pengguna." });
-            }
-
-            return Ok(users);
-        }
-
 
         [HttpPost]
         public async Task<IActionResult> AddUser([FromBody] UserActiveViewModel userActive)
@@ -128,7 +117,7 @@ namespace BPJSApotekOnlineDeveloper.Areas.MasterData.Controllers
                     UserActiveId = Guid.NewGuid(),
                     UserActiveCode = userActive.UserActiveCode,
                     FullName = userActive.FullName,
-                    IdentityNumber = userActive.IdentityNumber,                   
+                    IdentityNumber = userActive.IdentityNumber,
                     PlaceOfBirth = userActive.PlaceOfBirth,
                     DateOfBirth = userActive.DateOfBirth,
                     Gender = userActive.Gender,
@@ -138,7 +127,7 @@ namespace BPJSApotekOnlineDeveloper.Areas.MasterData.Controllers
                     IsActive = true
                 };
 
-                var passTglLahir = userActive.DateOfBirth.ToString("ddMMMyyyy");                
+                var passTglLahir = userActive.DateOfBirth.ToString("ddMMMyyyy");
 
                 var checkDuplicate = _applicationDbContext.UserActives.Where(c => c.UserActiveCode == userActive.UserActiveCode).ToList();
 
@@ -158,7 +147,7 @@ namespace BPJSApotekOnlineDeveloper.Areas.MasterData.Controllers
                         else
                         {
                             return NotFound(new { message = "Data tidak valid !!!" });
-                        }                        
+                        }
                     }
                     else
                     {
@@ -177,34 +166,79 @@ namespace BPJSApotekOnlineDeveloper.Areas.MasterData.Controllers
         }
 
         [HttpPut("{id}")]
-        public IActionResult UpdateUser(int id, [FromBody] UserActive update)
+        public IActionResult UpdateUser(Guid id, [FromBody] UserActiveViewModel update)
         {
+            if (update == null)
+            {
+                return BadRequest("Data user tidak boleh kosong.");
+            }
+
+            // Cari data berdasarkan ID
             var user = _applicationDbContext.UserActives.Find(id);
-            if (user == null) return NotFound();
+            if (user == null)
+            {
+                return NotFound($"User dengan ID {id} tidak ditemukan.");
+            }
 
-            user.FullName = update.FullName;
-            user.IdentityNumber = update.IdentityNumber;
-            user.PlaceOfBirth = update.PlaceOfBirth;
-            user.DateOfBirth = update.DateOfBirth;
-            user.Gender = update.Gender;
-            user.Address = update.Address;
-            user.Handphone = update.Handphone;
-            user.Email = update.Email;
-            user.IsActive = update.IsActive;            
+            try
+            {
+                // Perbarui data user
+                user.FullName = update.FullName;
+                user.IdentityNumber = update.IdentityNumber;
+                user.PlaceOfBirth = update.PlaceOfBirth;
+                user.DateOfBirth = update.DateOfBirth;
+                user.Gender = update.Gender;
+                user.Address = update.Address;
+                user.Handphone = update.Handphone;
+                user.Email = update.Email;
+                user.IsActive = update.IsActive;
 
-            _applicationDbContext.SaveChanges();
-            return NoContent();
+                // Tandai data sebagai telah diubah
+                _applicationDbContext.UserActives.Update(user);
+
+                // Simpan perubahan ke database
+                _applicationDbContext.SaveChanges();
+
+                return NoContent(); // 204 No Content jika berhasil
+            }
+            catch (Exception ex)
+            {
+                // Tangani error jika terjadi masalah
+                return StatusCode(500, $"Terjadi kesalahan saat memperbarui data: {ex.Message}");
+            }
         }
 
         [HttpDelete("{id}")]
-        public IActionResult DeleteUser(int id)
+        public IActionResult DeleteUser(Guid id)
         {
+            // Cari data berdasarkan ID
             var user = _applicationDbContext.UserActives.Find(id);
-            if (user == null) return NotFound();
+            if (user == null)
+            {
+                return NotFound($"User dengan ID {id} tidak ditemukan.");
+            }
 
-            _applicationDbContext.UserActives.Remove(user);
-            _applicationDbContext.SaveChanges();
-            return NoContent();
+            try
+            {
+                // Hapus Akun Login
+                var userLogin = _signInManager.UserManager.Users.FirstOrDefault(s => s.KodeUser == user.UserActiveCode);
+                _applicationDbContext.Attach(userLogin);
+                _applicationDbContext.Entry(userLogin).State = EntityState.Deleted;
+                _applicationDbContext.SaveChanges();
+
+                // Hapus entitas dari database
+                _applicationDbContext.UserActives.Remove(user);
+
+                // Simpan perubahan
+                _applicationDbContext.SaveChanges();
+
+                return NoContent(); // 204 No Content jika berhasil dihapus
+            }
+            catch (Exception ex)
+            {
+                // Tangani error jika ada masalah
+                return StatusCode(500, $"Terjadi kesalahan saat menghapus data: {ex.Message}");
+            }
         }
     }
 }
